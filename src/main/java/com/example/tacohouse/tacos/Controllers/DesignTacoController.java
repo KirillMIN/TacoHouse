@@ -3,12 +3,17 @@ package com.example.tacohouse.tacos.Controllers;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+
+
+import com.example.tacohouse.tacos.Repositories.JdbcTemplate.IngredientRepository;
 import com.example.tacohouse.tacos.entities.Ingredient;
 import com.example.tacohouse.tacos.entities.Taco;
 import com.example.tacohouse.tacos.entities.TacoOrder;
-import org.springframework.boot.Banner;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.Errors;
 import org.springframework.web.bind.annotation.*;
 import lombok.extern.slf4j.Slf4j;
 
@@ -20,26 +25,18 @@ import lombok.extern.slf4j.Slf4j;
 //Создание объекта поддерживается на впротяжении всей сессии
 @SessionAttributes("tacoOrder")
 public class DesignTacoController {
-
+    private final IngredientRepository ingredientRepo;
+    @Autowired
+    public DesignTacoController(IngredientRepository ingredientRepository){
+        this.ingredientRepo = ingredientRepository;
+    }
     @ModelAttribute
     public void addIngredientsToModel(Model model) {
-        List<Ingredient> ingredients = Arrays.asList(
-                new Ingredient("FLTO", "Flour Tortilla", Ingredient.Type.WRAP),
-                new Ingredient("COTO", "Corn Tortilla", Ingredient.Type.WRAP),
-                new Ingredient("GRBF", "Ground Beef", Ingredient.Type.PROTEIN),
-                new Ingredient("CARN", "Carnitas", Ingredient.Type.PROTEIN),
-                new Ingredient("TMTO", "Diced Tomatoes", Ingredient.Type.VEGGIES),
-                new Ingredient("LETC", "Lettuce", Ingredient.Type.VEGGIES),
-                new Ingredient("CHED", "Cheddar", Ingredient.Type.CHEESE),
-                new Ingredient("JACK", "Monterrey Jack", Ingredient.Type.CHEESE),
-                new Ingredient("SLSA", "Salsa", Ingredient.Type.SAUCE),
-                new Ingredient("SRCR", "Sour Cream", Ingredient.Type.SAUCE));
-
+        Iterable<Ingredient> ingredients = ingredientRepo.findAll();
         Ingredient.Type[] types = Ingredient.Type.values();
         for (Ingredient.Type type : types) {
-            //добавление элементов в модель
             model.addAttribute(type.toString().toLowerCase(),
-                    filterByType(ingredients, type));
+                    filterByType((List<Ingredient>) ingredients, type));
         }
     }
     //Добавление новых объектов в модель
@@ -67,10 +64,13 @@ public class DesignTacoController {
 
 
     @PostMapping
-    public String processTaco(Taco taco, @ModelAttribute TacoOrder tacoOrder){
+    public String processTaco(Taco taco, Errors errors, @ModelAttribute TacoOrder tacoOrder) {
+        if(errors.hasErrors()){
+            System.out.println(errors);
+            return "design";
+        }
         tacoOrder.addTaco(taco);
-        log.info("Processing taco: {}", taco);
-
+        log.info("Processing taco:" + taco.getId() + " "  + taco.getName() + " " + taco.getIngredients().isEmpty());
         return "redirect:/orders/current";
     }
 
